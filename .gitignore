@@ -1,0 +1,40 @@
+# Ambiente Virtual
+.venv/
+venv/
+ENV/
+
+# Vari√°veis de ambiente sens√≠veis (Seguran√ßa!)
+.env
+
+# Python / Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+
+# IDEs
+.vscode/
+.idea/
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Bancos de dados
+*.db
+# Arquivos locais e tempor·rios
+.env.*
+!.env.example
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# SQLite tempor·rios
+*.db-journal
+*.sqlite-journal

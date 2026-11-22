@@ -1,0 +1,3404 @@
+﻿INSPECAO DO PROJETO MULTIDISCIPLINAR
+Rede Raizes do Nordeste
+Data: 11/22/2026 08:08:47
+
+================================================================================
+ESTRUTURA DE DIRETORIOS E ARQUIVOS
+================================================================================
+
+criar_atendente_teste.py
+criar_gerente_teste.py
+requirements.txt
+test_config.py
+verificar_banco.py
+verificar_estoque.py
+verificar_estrutura.py
+verificar_tabelas.py
+.vscode\settings.json
+app\main.py
+app\__init__.py
+app\api\dependencies.py
+app\api\__init__.py
+app\api\routes\auth.py
+app\api\routes\consentimentos.py
+app\api\routes\estoques.py
+app\api\routes\pagamentos.py
+app\api\routes\pedidos.py
+app\api\routes\produtos.py
+app\api\routes\produto_unidades.py
+app\api\routes\unidades.py
+app\api\routes\__init__.py
+app\application\__init__.py
+app\application\services\consentimento_service.py
+app\application\services\fidelidade_service.py
+app\application\services\pagamento_service.py
+app\application\services\pedido_service.py
+app\application\services\__init__.py
+app\core\config.py
+app\core\security.py
+app\core\token.py
+app\core\__init__.py
+app\domain\__init__.py
+app\domain\enums\canal_pedido.py
+app\domain\enums\status_pagamento.py
+app\domain\enums\status_pedido.py
+app\domain\enums\__init__.py
+app\domain\models\consentimento.py
+app\domain\models\estoque.py
+app\domain\models\item_pedido.py
+app\domain\models\pagamento.py
+app\domain\models\pedido.py
+app\domain\models\ponto_fidelidade.py
+app\domain\models\produto.py
+app\domain\models\produto_unidade.py
+app\domain\models\registro_auditoria.py
+app\domain\models\unidade.py
+app\domain\models\usuario.py
+app\domain\models\__init__.py
+app\infrastructure\__init__.py
+app\infrastructure\database\database.py
+app\infrastructure\database\init_db.py
+app\infrastructure\database\__init__.py
+app\schemas\consentimento.py
+app\schemas\estoque.py
+app\schemas\pagamento.py
+app\schemas\pedido.py
+app\schemas\produto.py
+app\schemas\produto_unidade.py
+app\schemas\unidade.py
+app\schemas\usuario.py
+app\schemas\__init__.py
+tests\conftest.py
+tests\test_ambiente.py
+
+================================================================================
+CONTEUDO DOS ARQUIVOS
+================================================================================
+
+
+################################################################################
+ARQUIVO: .vscode\settings.json
+################################################################################
+
+{
+    "python.terminal.useEnvFile": true
+}
+
+
+################################################################################
+ARQUIVO: app\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\api\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\api\dependencies.py
+################################################################################
+
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+
+from app.infrastructure.database.database import SessionLocal
+from app.domain.models.usuario import Usuario
+from app.core.token import verificar_token
+
+
+oauth2_scheme = HTTPBearer()
+
+def get_db():
+    """Fornece uma sessÃ£o do banco de dados."""
+
+    db = SessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_usuario_atual(
+    credenciais: HTTPAuthorizationCredentials = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """Identifica o usuÃ¡rio por meio do token JWT."""
+
+    credenciais_invalidas = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token invÃ¡lido ou expirado.",
+        headers={"WWW-Authenticate": "Bearer"}
+    )
+    token = credenciais.credentials
+    dados_token = verificar_token(token)
+
+    if dados_token is None:
+        raise credenciais_invalidas
+
+    usuario_id = dados_token.get("sub")
+
+    if usuario_id is None:
+        raise credenciais_invalidas
+
+    try:
+        usuario_id = int(usuario_id)
+    except (ValueError, TypeError):
+        raise credenciais_invalidas
+
+    usuario = db.get(Usuario, usuario_id)
+
+    if usuario is None or not usuario.ativo:
+        raise credenciais_invalidas
+
+    return usuario
+
+
+def exigir_perfil(*perfis_permitidos: str):
+    """
+    Verifica se o usuÃ¡rio autenticado possui
+    um dos perfis autorizados.
+    """
+
+    def verificar_permissao(
+        usuario: Usuario = Depends(get_usuario_atual)
+    ):
+        if usuario.perfil not in perfis_permitidos:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="VocÃª nÃ£o possui permissÃ£o para realizar esta operaÃ§Ã£o."
+            )
+
+        return usuario
+
+    return verificar_permissao
+
+
+
+
+################################################################################
+ARQUIVO: app\api\routes\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\api\routes\auth.py
+################################################################################
+
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import (get_db, get_usuario_atual)
+from app.domain.models.usuario import Usuario
+from app.schemas.usuario import (
+    UsuarioCriacao,
+    UsuarioLogin,
+    UsuarioResposta
+)
+from app.core.security import gerar_hash_senha, verificar_senha
+from app.core.token import criar_token_acesso
+
+
+router = APIRouter(
+    prefix="/auth",
+    tags=["AutenticaÃ§Ã£o"]
+)
+
+
+@router.post(
+    "/cadastro",
+    response_model=UsuarioResposta,
+    status_code=status.HTTP_201_CREATED
+)
+def cadastrar_usuario(
+    dados: UsuarioCriacao,
+    db: Session = Depends(get_db)
+):
+    email_existente = db.query(Usuario).filter(
+        Usuario.email == dados.email
+    ).first()
+
+    if email_existente:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este email jÃ¡ estÃ¡ cadastrado."
+        )
+
+    usuario = Usuario(
+        nome=dados.nome,
+        email=dados.email,
+        senha_hash=gerar_hash_senha(dados.senha),
+        perfil="CLIENTE"
+    )
+
+    db.add(usuario)
+    db.commit()
+    db.refresh(usuario)
+
+    return usuario
+
+
+@router.post("/login")
+def realizar_login(
+    dados: UsuarioLogin,
+    db: Session = Depends(get_db)
+):
+    usuario = db.query(Usuario).filter(
+        Usuario.email == dados.email
+    ).first()
+
+    if not usuario or not verificar_senha(
+        dados.senha,
+        usuario.senha_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha incorretos."
+        )
+
+    if not usuario.ativo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="UsuÃ¡rio inativo."
+        )
+
+    token = criar_token_acesso({
+        "sub": str(usuario.id),
+        "perfil": usuario.perfil
+    })
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
+
+
+@router.get("/me", response_model=UsuarioResposta)
+def obter_usuario_logado(
+    usuario: Usuario = Depends(get_usuario_atual)
+):
+    return usuario
+
+
+################################################################################
+ARQUIVO: app\api\routes\consentimentos.py
+################################################################################
+
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_db, get_usuario_atual
+from app.domain.models.usuario import Usuario
+from app.schemas.consentimento import (
+    ConsentimentoCriacao,
+    ConsentimentoResposta
+)
+from app.application.services.consentimento_service import (
+    registrar_consentimento,
+    listar_consentimentos,
+    revogar_consentimento
+)
+
+
+router = APIRouter(
+    prefix="/consentimentos",
+    tags=["Consentimento LGPD"]
+)
+
+
+@router.post(
+    "/",
+    response_model=ConsentimentoResposta,
+    status_code=status.HTTP_201_CREATED
+)
+def criar_consentimento(
+    dados: ConsentimentoCriacao,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_atual)
+):
+    try:
+        return registrar_consentimento(
+            db=db,
+            usuario_id=usuario.id,
+            finalidade=dados.finalidade
+        )
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(erro)
+        )
+
+
+@router.get(
+    "/meus",
+    response_model=list[ConsentimentoResposta]
+)
+def consultar_meus_consentimentos(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_atual)
+):
+    return listar_consentimentos(
+        db=db,
+        usuario_id=usuario.id
+    )
+
+
+@router.patch(
+    "/{consentimento_id}/revogar",
+    response_model=ConsentimentoResposta
+)
+def revogar_meu_consentimento(
+    consentimento_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_atual)
+):
+    try:
+        return revogar_consentimento(
+            db=db,
+            consentimento_id=consentimento_id,
+            usuario_id=usuario.id
+        )
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro)
+        )
+
+
+
+################################################################################
+ARQUIVO: app\api\routes\estoques.py
+################################################################################
+
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_db, exigir_perfil
+from app.domain.models.estoque import Estoque
+from app.schemas.estoque import EstoqueResposta, EstoqueAtualizacao
+
+
+router = APIRouter(
+    prefix="/estoques",
+    tags=["GestÃ£o de Estoque"]
+)
+
+
+@router.get(
+    "/",
+    response_model=list[EstoqueResposta]
+)
+def listar_estoques(
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil(
+        "CLIENTE",
+        "ATENDENTE",
+        "COZINHA",
+        "GERENTE",
+        "MATRIZ"
+    ))
+):
+    estoques = db.query(Estoque).all()
+
+    return estoques
+
+
+@router.get(
+    "/{estoque_id}",
+    response_model=EstoqueResposta
+)
+def obter_estoque(
+    estoque_id: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil(
+        "CLIENTE",
+        "ATENDENTE",
+        "COZINHA",
+        "GERENTE",
+        "MATRIZ"
+    ))
+):
+    estoque = db.get(Estoque, estoque_id)
+
+    if not estoque:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registro de estoque nÃ£o encontrado."
+        )
+
+    return estoque
+
+
+@router.patch(
+    "/{estoque_id}",
+    response_model=EstoqueResposta
+)
+def atualizar_estoque(
+    estoque_id: int,
+    dados: EstoqueAtualizacao,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    estoque = db.get(Estoque, estoque_id)
+
+    if not estoque:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registro de estoque nÃ£o encontrado."
+        )
+
+    estoque.quantidade_disponivel = dados.quantidade_disponivel
+
+    db.commit()
+    db.refresh(estoque)
+
+    return estoque
+
+
+
+
+################################################################################
+ARQUIVO: app\api\routes\pagamentos.py
+################################################################################
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_db, get_usuario_atual
+from app.domain.models.usuario import Usuario
+from app.schemas.pagamento import (
+    PagamentoSimulacao,
+    PagamentoResposta
+)
+from app.application.services.pagamento_service import (
+    buscar_pedido,
+    processar_pagamento
+)
+
+
+router = APIRouter(
+    prefix="/pagamentos",
+    tags=["Pagamentos"]
+)
+
+
+@router.post(
+    "/{pedido_id}/simular",
+    response_model=PagamentoResposta,
+    status_code=201
+)
+def simular_pagamento_endpoint(
+    pedido_id: int,
+    dados: PagamentoSimulacao,
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(get_usuario_atual)
+):
+
+    try:
+        # 1. Identificar o perfil do usuÃ¡rio
+        perfil = usuario_atual.perfil
+
+        if hasattr(perfil, "value"):
+            perfil = perfil.value
+
+        # 2. Buscar o pedido
+        pedido = buscar_pedido(db, pedido_id)
+
+        # 3. Verificar autorizaÃ§Ã£o
+        if perfil == "CLIENTE":
+
+            if pedido.cliente_id != usuario_atual.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="VocÃª nÃ£o pode pagar este pedido."
+                )
+
+        elif perfil == "ATENDENTE":
+
+            if pedido.atendente_id != usuario_atual.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="VocÃª nÃ£o pode processar o pagamento deste pedido."
+                )
+
+        else:
+            raise HTTPException(
+                status_code=403,
+                detail="Perfil nÃ£o autorizado a processar pagamentos."
+            )
+
+        # 4. Processar o pagamento
+        pagamento = processar_pagamento(
+            db,
+            pedido_id,
+            dados.aprovado
+        )
+
+        # 5. Confirmar transaÃ§Ã£o
+        db.commit()
+        db.refresh(pagamento)
+
+        return pagamento
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except ValueError as erro:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=str(erro)
+        )
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao processar pagamento."
+        )
+
+
+################################################################################
+ARQUIVO: app\api\routes\pedidos.py
+################################################################################
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_db, get_usuario_atual
+from app.domain.models.usuario import Usuario
+from app.schemas.pedido import PedidoCriacao, PedidoResposta
+from app.application.services.pedido_service import criar_pedido
+
+
+router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
+
+@router.post("/", response_model=PedidoResposta, status_code=201)
+def criar_pedido_endpoint(
+    dados: PedidoCriacao,
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(get_usuario_atual)
+):
+    try:
+        pedido = criar_pedido(db, usuario_atual, dados)
+
+        db.commit()
+        db.refresh(pedido)
+
+        return pedido
+
+    except ValueError as erro:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=str(erro)
+        )
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao criar pedido."
+        )
+
+
+################################################################################
+ARQUIVO: app\api\routes\produto_unidades.py
+################################################################################
+
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from app.api.dependencies import get_db, exigir_perfil
+from app.domain.models.produto import Produto
+from app.domain.models.unidade import Unidade
+from app.domain.models.produto_unidade import ProdutoUnidade
+from app.domain.models.estoque import Estoque
+from app.schemas.produto_unidade import (
+    ProdutoUnidadeCriacao,
+    ProdutoUnidadeResposta
+)
+from app.schemas.produto_unidade import (
+    ProdutoUnidadeCriacao,
+    ProdutoUnidadeAtualizacao,
+    ProdutoUnidadeResposta
+)
+
+
+
+router = APIRouter(
+    prefix="/produto-unidades",
+    tags=["Produtos por Unidade"]
+)
+
+
+@router.post(
+    "/",
+    response_model=ProdutoUnidadeResposta,
+    status_code=status.HTTP_201_CREATED
+)
+def associar_produto_unidade(
+    dados: ProdutoUnidadeCriacao,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    unidade = db.get(Unidade, dados.unidade_id)
+
+    if not unidade or not unidade.ativa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Unidade nÃ£o encontrada ou inativa."
+        )
+
+    produto = db.get(Produto, dados.produto_id)
+
+    if not produto or not produto.ativo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Produto nÃ£o encontrado ou inativo."
+        )
+
+    associacao_existente = db.query(ProdutoUnidade).filter(
+        ProdutoUnidade.unidade_id == dados.unidade_id,
+        ProdutoUnidade.produto_id == dados.produto_id
+    ).first()
+
+    if associacao_existente:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este produto jÃ¡ estÃ¡ associado a esta unidade."
+        )
+
+    if (
+        dados.data_inicio_disponibilidade
+        and dados.data_fim_disponibilidade
+        and dados.data_fim_disponibilidade < dados.data_inicio_disponibilidade
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A data final nÃ£o pode ser anterior Ã  data inicial."
+        )
+
+    associacao = ProdutoUnidade(
+        unidade_id=dados.unidade_id,
+        produto_id=dados.produto_id,
+        preco_especifico=dados.preco_especifico,
+        data_inicio_disponibilidade=dados.data_inicio_disponibilidade,
+        data_fim_disponibilidade=dados.data_fim_disponibilidade,
+        observacao_variacao=dados.observacao_variacao,
+        habilitado=True
+    )
+
+    try:
+        db.add(associacao)
+        db.flush()
+
+        estoque = Estoque(
+            produto_unidade_id=associacao.id,
+            quantidade_disponivel=0
+        )
+
+        db.add(estoque)
+        db.commit()
+        db.refresh(associacao)
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="NÃ£o foi possÃ­vel criar a associaÃ§Ã£o. Verifique se ela jÃ¡ existe."
+        )
+
+    return associacao
+
+
+@router.get(
+    "/",
+    response_model=list[ProdutoUnidadeResposta]
+)
+def listar_produtos_unidades(
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil(
+        "CLIENTE",
+        "ATENDENTE",
+        "COZINHA",
+        "GERENTE",
+        "MATRIZ"
+    ))
+):
+    associacoes = db.query(ProdutoUnidade).all()
+
+    return associacoes
+
+
+@router.get(
+    "/{produto_unidade_id}",
+    response_model=ProdutoUnidadeResposta
+)
+def obter_produto_unidade(
+    produto_unidade_id: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil(
+        "CLIENTE",
+        "ATENDENTE",
+        "COZINHA",
+        "GERENTE",
+        "MATRIZ"
+    ))
+):
+    associacao = db.get(ProdutoUnidade, produto_unidade_id)
+
+    if not associacao:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="AssociaÃ§Ã£o entre produto e unidade nÃ£o encontrada."
+        )
+
+    return associacao
+
+
+@router.patch(
+    "/{produto_unidade_id}",
+    response_model=ProdutoUnidadeResposta
+)
+def atualizar_produto_unidade(
+    produto_unidade_id: int,
+    dados: ProdutoUnidadeAtualizacao,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    associacao = db.get(ProdutoUnidade, produto_unidade_id)
+
+    if not associacao:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="AssociaÃ§Ã£o entre produto e unidade nÃ£o encontrada."
+        )
+
+    dados_atualizacao = dados.model_dump(exclude_unset=True)
+
+    data_inicio = dados_atualizacao.get(
+        "data_inicio_disponibilidade",
+        associacao.data_inicio_disponibilidade
+    )
+
+    data_fim = dados_atualizacao.get(
+        "data_fim_disponibilidade",
+        associacao.data_fim_disponibilidade
+    )
+
+    if data_inicio and data_fim and data_fim < data_inicio:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A data final nÃ£o pode ser anterior Ã  data inicial."
+        )
+
+    for campo, valor in dados_atualizacao.items():
+        setattr(associacao, campo, valor)
+
+    db.commit()
+    db.refresh(associacao)
+
+    return associacao
+
+
+@router.delete("/{produto_unidade_id}")
+def desativar_produto_unidade(
+    produto_unidade_id: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    associacao = db.get(ProdutoUnidade, produto_unidade_id)
+
+    if not associacao:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="AssociaÃ§Ã£o entre produto e unidade nÃ£o encontrada."
+        )
+
+    if not associacao.habilitado:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esta associaÃ§Ã£o jÃ¡ estÃ¡ desabilitada."
+        )
+
+    associacao.habilitado = False
+
+    db.commit()
+    db.refresh(associacao)
+
+    return {
+        "mensagem": "AssociaÃ§Ã£o desabilitada com sucesso.",
+        "associacao": associacao
+    }
+
+
+
+################################################################################
+ARQUIVO: app\api\routes\produtos.py
+################################################################################
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_db, get_usuario_atual, exigir_perfil
+from app.domain.models.produto import Produto
+from app.schemas.produto import (
+    ProdutoCriacao,
+    ProdutoAtualizacao,
+    ProdutoResposta
+)
+
+router = APIRouter(
+    prefix="/produtos",
+    tags=["Produtos"]
+)
+
+
+@router.post(
+    "/",
+    response_model=ProdutoResposta,
+    status_code=status.HTTP_201_CREATED
+)
+def cadastrar_produto(
+    dados: ProdutoCriacao,
+    db: Session = Depends(get_db),
+    usuario = Depends(
+        exigir_perfil("GERENTE", "MATRIZ")
+    )
+):
+    produto = Produto(
+        nome=dados.nome,
+        descricao=dados.descricao,
+        preco_padrao=dados.preco_padrao
+    )
+
+    db.add(produto)
+    db.commit()
+    db.refresh(produto)
+
+    return produto
+
+
+@router.get(
+    "/",
+    response_model=list[ProdutoResposta]
+)
+def listar_produtos(
+    db: Session = Depends(get_db),
+    usuario = Depends(get_usuario_atual)
+):
+    produtos = db.query(Produto).all()
+    return produtos
+
+@router.get("/{produto_id}", response_model=ProdutoResposta)
+def buscar_produto(
+    produto_id: int,
+    db: Session = Depends(get_db),
+    usuario = Depends(get_usuario_atual)
+):
+    produto = db.query(Produto).filter(
+        Produto.id == produto_id
+    ).first()
+
+    if produto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Produto nÃ£o encontrado."
+        )
+
+    return produto
+
+
+@router.patch("/{produto_id}", response_model=ProdutoResposta)
+def atualizar_produto(
+    produto_id: int,
+    dados: ProdutoAtualizacao,
+    db: Session = Depends(get_db),
+    usuario = Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    produto = db.query(Produto).filter(
+        Produto.id == produto_id
+    ).first()
+
+    if produto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Produto nÃ£o encontrado."
+        )
+
+    dados_atualizacao = dados.model_dump(exclude_unset=True)
+
+    for campo, valor in dados_atualizacao.items():
+        setattr(produto, campo, valor)
+
+    db.commit()
+    db.refresh(produto)
+
+    return produto
+
+@router.delete("/{produto_id}")
+def desativar_produto(
+    produto_id: int,
+    db: Session = Depends(get_db),
+    usuario = Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    produto = db.query(Produto).filter(
+        Produto.id == produto_id
+    ).first()
+
+    if produto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Produto nÃ£o encontrado."
+        )
+
+    if not produto.ativo:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Este produto jÃ¡ estÃ¡ desativado."
+        )
+
+    produto.ativo = False
+
+    db.commit()
+    db.refresh(produto)
+
+    return {
+        "mensagem": "Produto desativado com sucesso.",
+        "produto": ProdutoResposta.model_validate(produto)
+    }
+
+
+################################################################################
+ARQUIVO: app\api\routes\unidades.py
+################################################################################
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import (
+    get_db,
+    get_usuario_atual,
+    exigir_perfil
+)
+
+from app.domain.models.unidade import Unidade
+
+from app.schemas.unidade import (
+    UnidadeCriacao,
+    UnidadeAtualizacao,
+    UnidadeResposta
+)
+
+
+router = APIRouter(
+    prefix="/unidades",
+    tags=["Unidades"]
+)
+
+
+@router.post(
+    "/",
+    response_model=UnidadeResposta,
+    status_code=status.HTTP_201_CREATED
+)
+def cadastrar_unidade(
+    dados: UnidadeCriacao,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    unidade = Unidade(
+        nome=dados.nome,
+        cidade=dados.cidade,
+        regiao=dados.regiao
+    )
+
+    db.add(unidade)
+    db.commit()
+    db.refresh(unidade)
+
+    return unidade
+
+
+@router.get(
+    "/",
+    response_model=list[UnidadeResposta]
+)
+def listar_unidades(
+    db: Session = Depends(get_db),
+    usuario=Depends(get_usuario_atual)
+):
+    unidades = db.query(Unidade).all()
+
+    return unidades
+
+@router.get(
+    "/{unidade_id}",
+    response_model=UnidadeResposta
+)
+def buscar_unidade(
+    unidade_id: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(get_usuario_atual)
+):
+    unidade = db.query(Unidade).filter(
+        Unidade.id == unidade_id
+    ).first()
+
+    if unidade is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Unidade nÃ£o encontrada."
+        )
+
+    return unidade
+
+@router.patch(
+    "/{unidade_id}",
+    response_model=UnidadeResposta
+)
+def atualizar_unidade(
+    unidade_id: int,
+    dados: UnidadeAtualizacao,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    unidade = db.query(Unidade).filter(
+        Unidade.id == unidade_id
+    ).first()
+
+    if unidade is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Unidade nÃ£o encontrada."
+        )
+
+    dados_atualizacao = dados.model_dump(exclude_unset=True)
+
+    for campo, valor in dados_atualizacao.items():
+        setattr(unidade, campo, valor)
+
+    db.commit()
+    db.refresh(unidade)
+
+    return unidade
+
+@router.delete("/{unidade_id}")
+def desativar_unidade(
+    unidade_id: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(exigir_perfil("GERENTE", "MATRIZ"))
+):
+    unidade = db.query(Unidade).filter(
+        Unidade.id == unidade_id
+    ).first()
+
+    if unidade is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Unidade nÃ£o encontrada."
+        )
+
+    if not unidade.ativa:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esta unidade jÃ¡ estÃ¡ desativada."
+        )
+
+    unidade.ativa = False
+
+    db.commit()
+    db.refresh(unidade)
+
+    return {
+        "mensagem": "Unidade desativada com sucesso.",
+        "unidade": UnidadeResposta.model_validate(unidade)
+    }
+
+
+################################################################################
+ARQUIVO: app\application\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\application\services\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\application\services\consentimento_service.py
+################################################################################
+
+
+from datetime import datetime
+
+from sqlalchemy.orm import Session
+
+from app.domain.models.consentimento import Consentimento
+
+
+def registrar_consentimento(
+    db: Session,
+    usuario_id: int,
+    finalidade: str
+):
+    consentimento_existente = db.query(Consentimento).filter(
+        Consentimento.usuario_id == usuario_id,
+        Consentimento.finalidade == finalidade,
+        Consentimento.autorizado == True
+    ).first()
+
+    if consentimento_existente:
+        raise ValueError(
+            "JÃ¡ existe um consentimento ativo para esta finalidade."
+        )
+
+    consentimento = Consentimento(
+        usuario_id=usuario_id,
+        finalidade=finalidade,
+        autorizado=True,
+        data_consentimento=datetime.now()
+    )
+
+    db.add(consentimento)
+    db.commit()
+    db.refresh(consentimento)
+
+    return consentimento
+
+
+def listar_consentimentos(
+    db: Session,
+    usuario_id: int
+):
+    return db.query(Consentimento).filter(
+        Consentimento.usuario_id == usuario_id
+    ).order_by(Consentimento.data_consentimento.desc()).all()
+
+
+def revogar_consentimento(
+    db: Session,
+    consentimento_id: int,
+    usuario_id: int
+):
+    consentimento = db.query(Consentimento).filter(
+        Consentimento.id == consentimento_id,
+        Consentimento.usuario_id == usuario_id,
+        Consentimento.autorizado == True
+    ).first()
+
+    if not consentimento:
+        raise ValueError(
+            "Consentimento ativo nÃ£o encontrado."
+        )
+
+    consentimento.autorizado = False
+    consentimento.data_revogacao = datetime.now()
+
+    db.commit()
+    db.refresh(consentimento)
+
+    return consentimento
+
+
+
+################################################################################
+ARQUIVO: app\application\services\fidelidade_service.py
+################################################################################
+
+from decimal import Decimal, ROUND_DOWN
+from sqlalchemy.orm import Session
+
+from app.domain.models.consentimento import Consentimento
+from app.domain.models.ponto_fidelidade import PontoFidelidade
+
+
+FINALIDADE_FIDELIDADE = "PROGRAMA_FIDELIDADE"
+
+
+def cliente_aderiu_fidelidade(
+    db: Session,
+    cliente_id: int
+) -> bool:
+
+    consentimento = db.query(Consentimento).filter(
+        Consentimento.usuario_id == cliente_id,
+        Consentimento.finalidade == FINALIDADE_FIDELIDADE,
+        Consentimento.autorizado == True,
+        Consentimento.data_revogacao.is_(None)
+    ).first()
+
+    return consentimento is not None
+
+
+def calcular_pontos(valor: Decimal) -> int:
+    """
+    Regra MVP:
+    1 ponto por R$ 1,00 pago.
+    FraÃ§Ãµes de reais sÃ£o arredondadas para baixo.
+    """
+
+    return int(
+        valor.quantize(
+            Decimal("1"),
+            rounding=ROUND_DOWN
+        )
+    )
+
+
+def creditar_pontos(
+    db: Session,
+    pedido,
+    pagamento
+):
+    # 1. Somente pagamentos aprovados geram pontos.
+    if pagamento.status_pagamento.value != "APROVADO":
+        return None
+
+    # 2. Verificar se o cliente aderiu ao programa.
+    if not cliente_aderiu_fidelidade(
+        db,
+        pedido.cliente_id
+    ):
+        return None
+
+    # 3. Prevenir crÃ©dito duplicado.
+    credito_existente = db.query(PontoFidelidade).filter(
+        PontoFidelidade.pedido_id == pedido.id
+    ).first()
+
+    if credito_existente:
+        return credito_existente
+
+    # 4. Calcular pontos com base no pagamento.
+    pontos = calcular_pontos(pagamento.valor)
+
+    if pontos <= 0:
+        return None
+
+    # 5. Registrar crÃ©dito no histÃ³rico.
+    credito = PontoFidelidade(
+        cliente_id=pedido.cliente_id,
+        pedido_id=pedido.id,
+        pagamento_id=pagamento.id,
+        pontos=pontos
+    )
+
+    db.add(credito)
+
+    # NÃ£o faz commit aqui.
+    # O commit serÃ¡ realizado pelo endpoint de pagamento.
+
+    return credito
+
+
+################################################################################
+ARQUIVO: app\application\services\pagamento_service.py
+################################################################################
+
+
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from app.domain.models.pedido import Pedido
+from app.domain.models.pagamento import Pagamento
+from app.domain.models.estoque import Estoque
+
+from app.domain.enums.status_pedido import StatusPedido
+from app.domain.enums.status_pagamento import StatusPagamento
+
+from app.application.services.fidelidade_service import creditar_pontos
+
+
+def buscar_pedido(db: Session, pedido_id: int) -> Pedido:
+    pedido = db.query(Pedido).filter(
+        Pedido.id == pedido_id
+    ).first()
+
+    if not pedido:
+        raise ValueError("Pedido nÃ£o encontrado.")
+
+    return pedido
+
+
+def validar_pedido_para_pagamento(pedido: Pedido):
+    if pedido.status != StatusPedido.AGUARDANDO_PAGAMENTO:
+        raise ValueError(
+            "Pedido nÃ£o estÃ¡ aguardando pagamento."
+        )
+
+    if not pedido.itens:
+        raise ValueError("Pedido nÃ£o possui itens.")
+
+    if pedido.valor_total <= 0:
+        raise ValueError("Valor do pedido invÃ¡lido.")
+
+
+def obter_numero_tentativa(
+    db: Session,
+    pedido_id: int
+) -> int:
+    ultima_tentativa = db.query(
+        func.max(Pagamento.numero_tentativa)
+    ).filter(
+        Pagamento.pedido_id == pedido_id
+    ).scalar()
+
+    return (ultima_tentativa or 0) + 1
+
+
+def validar_estoque_pedido(
+    db: Session,
+    pedido: Pedido
+):
+    for item in pedido.itens:
+        estoque = db.query(Estoque).filter(
+            Estoque.produto_unidade_id
+            == item.produto_unidade_id
+        ).first()
+
+        if not estoque:
+            raise ValueError(
+                "Estoque nÃ£o encontrado para um item do pedido."
+            )
+
+        if estoque.quantidade_disponivel < item.quantidade:
+            raise ValueError(
+                "Estoque insuficiente para pagamento."
+            )
+
+
+def baixar_estoque_pedido(
+    db: Session,
+    pedido: Pedido
+):
+    for item in pedido.itens:
+        estoque = db.query(Estoque).filter(
+            Estoque.produto_unidade_id
+            == item.produto_unidade_id
+        ).first()
+
+        if not estoque:
+            raise ValueError(
+                "Estoque nÃ£o encontrado para um item do pedido."
+            )
+
+        estoque.quantidade_disponivel -= item.quantidade
+
+
+def processar_pagamento(
+    db: Session,
+    pedido_id: int,
+    aprovado: bool
+) -> Pagamento:
+
+    # 1. Buscar o pedido
+    pedido = buscar_pedido(db, pedido_id)
+
+    # 2. Validar se o pedido pode receber pagamento
+    validar_pedido_para_pagamento(pedido)
+
+    # 3. Identificar o nÃºmero da tentativa
+    tentativa = obter_numero_tentativa(
+        db,
+        pedido_id
+    )
+
+    # 4. Definir o resultado da simulaÃ§Ã£o
+    if aprovado:
+
+        # Verificar estoque antes da aprovaÃ§Ã£o
+        validar_estoque_pedido(db, pedido)
+
+        status_pagamento = StatusPagamento.APROVADO
+
+        # Baixar estoque apÃ³s aprovaÃ§Ã£o simulada
+        baixar_estoque_pedido(db, pedido)
+
+        # Atualizar o status do pedido
+        pedido.status = StatusPedido.EM_PREPARO
+
+    else:
+        # Pagamento recusado: nÃ£o baixa estoque
+        status_pagamento = StatusPagamento.RECUSADO
+
+    # 5. Registrar a tentativa de pagamento
+    pagamento = Pagamento(
+        pedido_id=pedido.id,
+        status_pagamento=status_pagamento,
+        valor=pedido.valor_total,
+        numero_tentativa=tentativa,
+        referencia_transacao=(
+            f"SIM-{pedido.id}-{tentativa}"
+        )
+    )
+
+    db.add(pagamento)
+
+    # 6. Persistir dentro da transaÃ§Ã£o atual
+    # O flush disponibiliza o ID do pagamento
+    db.flush()
+
+    # 7. Creditar pontos somente se aprovado
+    # O serviÃ§o verifica o consentimento do cliente
+    if aprovado:
+        creditar_pontos(
+            db=db,
+            pedido=pedido,
+            pagamento=pagamento
+        )
+
+    # O commit serÃ¡ realizado pela rota de pagamentos
+    return pagamento
+
+
+
+################################################################################
+ARQUIVO: app\application\services\pedido_service.py
+################################################################################
+
+from datetime import date
+
+from sqlalchemy.orm import Session
+
+from decimal import Decimal
+
+
+from app.domain.models.unidade import Unidade
+from app.domain.models.usuario import Usuario
+from app.domain.models.produto import Produto
+from app.domain.models.produto_unidade import ProdutoUnidade
+from app.domain.models.estoque import Estoque
+from app.domain.models.pedido import Pedido
+from app.domain.models.item_pedido import ItemPedido
+from app.schemas.pedido import ItemPedidoCriacao
+from app.schemas.pedido import PedidoCriacao
+
+
+def validar_unidade(db: Session, unidade_id: int) -> Unidade:
+    unidade = db.get(Unidade, unidade_id)
+
+    if unidade is None:
+        raise ValueError("Unidade nÃ£o encontrada.")
+
+    if not unidade.ativa:
+        raise ValueError("Esta unidade estÃ¡ desativada.")
+
+    return unidade
+
+
+def validar_cliente(db: Session, cliente_id: int) -> Usuario:
+    cliente = db.get(Usuario, cliente_id)
+
+    if cliente is None:
+        raise ValueError("Cliente nÃ£o encontrado.")
+
+    if not cliente.ativo:
+        raise ValueError("Este cliente estÃ¡ desativado.")
+
+    if cliente.perfil != "CLIENTE":
+        raise ValueError("O usuÃ¡rio informado nÃ£o possui perfil de cliente.")
+
+    return cliente
+
+
+def validar_atendente(db: Session,  atendente_id: int | None) -> Usuario | None:
+
+    if atendente_id is None:
+        return None
+
+    atendente = db.get(Usuario, atendente_id)
+
+    if atendente is None:
+        raise ValueError("Atendente nÃ£o encontrado.")
+
+    if not atendente.ativo:
+        raise ValueError("Este atendente estÃ¡ desativado.")
+
+    if atendente.perfil != "ATENDENTE":
+        raise ValueError("O usuÃ¡rio informado nÃ£o possui perfil de atendente.")
+
+    return atendente
+
+
+
+def validar_produto_unidade(
+    db: Session,
+    unidade_id: int,
+    produto_unidade_id: int
+) -> tuple[ProdutoUnidade, Produto]:
+
+    associacao = db.query(ProdutoUnidade).filter(
+        ProdutoUnidade.id == produto_unidade_id,
+        ProdutoUnidade.unidade_id == unidade_id
+    ).first()
+
+    if associacao is None:
+        raise ValueError(
+            "Produto nÃ£o encontrado ou nÃ£o associado a esta unidade."
+        )
+
+    if not associacao.habilitado:
+        raise ValueError(
+            "Este produto estÃ¡ desabilitado nesta unidade."
+        )
+
+    hoje = date.today()
+
+    if (
+        associacao.data_inicio_disponibilidade is not None
+        and hoje < associacao.data_inicio_disponibilidade
+    ):
+        raise ValueError(
+            "Este produto ainda nÃ£o estÃ¡ disponÃ­vel."
+        )
+
+    if (
+        associacao.data_fim_disponibilidade is not None
+        and hoje > associacao.data_fim_disponibilidade
+    ):
+        raise ValueError(
+            "O perÃ­odo de disponibilidade deste produto terminou."
+        )
+
+    produto = db.get(Produto, associacao.produto_id)
+
+    if produto is None or not produto.ativo:
+        raise ValueError(
+            "Este produto estÃ¡ inativo ou nÃ£o foi encontrado."
+        )
+
+    return associacao, produto
+
+
+
+def validar_estoque(
+    db: Session,
+    produto_unidade_id: int,
+    quantidade_solicitada: int
+) -> Estoque:
+
+    estoque = db.query(Estoque).filter(
+        Estoque.produto_unidade_id == produto_unidade_id
+    ).first()
+
+    if estoque is None:
+        raise ValueError(
+            "Registro de estoque nÃ£o encontrado."
+        )
+
+    if estoque.quantidade_disponivel < quantidade_solicitada:
+        raise ValueError(
+            "Estoque insuficiente para atender ao pedido."
+        )
+
+    return estoque
+
+
+
+def calcular_preco_item(
+    associacao: ProdutoUnidade,
+    produto: Produto,
+    quantidade: int
+) -> tuple[Decimal, Decimal]:
+
+    if associacao.preco_especifico is not None:
+        preco_unitario = associacao.preco_especifico
+    else:
+        preco_unitario = produto.preco_padrao
+
+    subtotal = preco_unitario * quantidade
+
+    return preco_unitario, subtotal
+
+
+def preparar_itens_pedido(
+    db: Session,
+    unidade_id: int,
+    itens: list[ItemPedidoCriacao]
+) -> tuple[list[tuple[int, int, Decimal, Decimal]], Decimal]:
+
+    produtos_processados = set()
+    itens_preparados = []
+    valor_total = Decimal("0.00")
+
+    for item in itens:
+
+        if item.produto_unidade_id in produtos_processados:
+            raise ValueError(
+                "O mesmo produto nÃ£o pode ser repetido no pedido."
+            )
+
+        produtos_processados.add(item.produto_unidade_id)
+
+        associacao, produto = validar_produto_unidade(
+            db,
+            unidade_id,
+            item.produto_unidade_id
+        )
+
+        validar_estoque(
+            db,
+            item.produto_unidade_id,
+            item.quantidade
+        )
+
+        preco_unitario, subtotal = calcular_preco_item(
+            associacao,
+            produto,
+            item.quantidade
+        )
+
+        itens_preparados.append(
+            (
+                associacao.id,
+                item.quantidade,
+                preco_unitario,
+                subtotal
+            )
+        )
+
+        valor_total += subtotal
+
+    return itens_preparados, valor_total
+
+def identificar_compradores(
+    db: Session,
+    usuario_atual: Usuario,
+    cliente_id: int | None
+) -> tuple[int, int | None]:
+
+    if usuario_atual.perfil == "CLIENTE":
+        if cliente_id is not None:
+            raise ValueError("Cliente nÃ£o deve informar cliente_id.")
+
+        validar_cliente(db, usuario_atual.id)
+        return usuario_atual.id, None
+
+    if usuario_atual.perfil == "ATENDENTE":
+        if cliente_id is None:
+            raise ValueError("Atendente deve informar cliente_id.")
+
+        validar_cliente(db, cliente_id)
+        validar_atendente(db, usuario_atual.id)
+
+        return cliente_id, usuario_atual.id
+
+    raise ValueError("Perfil nÃ£o autorizado a criar pedidos.")
+
+
+def validar_preparar_pedido(
+    db: Session,
+    usuario_atual: Usuario,
+    dados: PedidoCriacao
+):
+    unidade = validar_unidade(db, dados.unidade_id)
+
+    cliente_id, atendente_id = identificar_compradores(
+        db,
+        usuario_atual,
+        dados.cliente_id
+    )
+
+    itens_preparados, valor_total = preparar_itens_pedido(
+        db,
+        unidade.id,
+        dados.itens
+    )
+
+    return (
+        unidade,
+        cliente_id,
+        atendente_id,
+        itens_preparados,
+        valor_total
+    )
+
+
+
+def criar_registro_pedido(
+    db: Session,
+    unidade_id: int,
+    cliente_id: int,
+    atendente_id: int | None,
+    canal_pedido,
+    valor_total: Decimal
+) -> Pedido:
+
+    pedido = Pedido(
+        unidade_id=unidade_id,
+        cliente_id=cliente_id,
+        atendente_id=atendente_id,
+        canal_pedido=canal_pedido,
+        valor_total=valor_total
+    )
+
+    db.add(pedido)
+    db.flush()
+
+    return pedido
+
+
+def criar_itens_pedido(
+    db: Session,
+    pedido_id: int,
+    itens_preparados: list
+) -> list[ItemPedido]:
+
+    itens_criados = []
+
+    for item in itens_preparados:
+        produto_unidade_id, quantidade, preco_unitario, subtotal = item
+
+        item_pedido = ItemPedido(
+            pedido_id=pedido_id,
+            produto_unidade_id=produto_unidade_id,
+            quantidade=quantidade,
+            preco_unitario=preco_unitario
+        )
+
+        db.add(item_pedido)
+        itens_criados.append(item_pedido)
+
+    return itens_criados
+
+
+def criar_pedido(
+    db: Session,
+    usuario_atual: Usuario,
+    dados: PedidoCriacao
+) -> Pedido:
+
+    (
+        unidade,
+        cliente_id,
+        atendente_id,
+        itens_preparados,
+        valor_total
+    ) = validar_preparar_pedido(
+        db,
+        usuario_atual,
+        dados
+    )
+
+    pedido = criar_registro_pedido(
+        db,
+        unidade.id,
+        cliente_id,
+        atendente_id,
+        dados.canal_pedido,
+        valor_total
+    )
+
+    criar_itens_pedido(
+        db,
+        pedido.id,
+        itens_preparados
+    )
+
+    return pedido
+
+
+################################################################################
+ARQUIVO: app\core\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\core\config.py
+################################################################################
+
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+    APP_NAME: str
+    APP_ENV: str
+    DATABASE_URL: str
+
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+
+settings = Settings()
+
+
+
+################################################################################
+ARQUIVO: app\core\security.py
+################################################################################
+
+
+from pwdlib import PasswordHash
+
+
+# Configura o algoritmo Argon2
+password_hash = PasswordHash.recommended()
+
+
+def gerar_hash_senha(senha: str) -> str:
+    """Gera um hash seguro para a senha."""
+    return password_hash.hash(senha)
+
+
+def verificar_senha(senha: str, senha_hash: str) -> bool:
+    """Verifica se a senha corresponde ao hash armazenado."""
+    return password_hash.verify(senha, senha_hash)
+
+
+
+################################################################################
+ARQUIVO: app\core\token.py
+################################################################################
+
+
+from datetime import datetime, timedelta, timezone
+
+import jwt
+
+from app.core.config import settings
+
+
+def criar_token_acesso(dados: dict) -> str:
+    """Gera um token JWT com prazo de validade."""
+
+    dados_token = dados.copy()
+
+    expiracao = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    dados_token.update({"exp": expiracao})
+
+    token = jwt.encode(
+        dados_token,
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
+
+    return token
+
+
+def verificar_token(token: str) -> dict | None:
+    """Valida o token e retorna seus dados."""
+
+    try:
+        dados = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+
+        return dados
+
+    except jwt.InvalidTokenError:
+        return None
+
+
+
+################################################################################
+ARQUIVO: app\domain\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\domain\enums\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\domain\enums\canal_pedido.py
+################################################################################
+
+from enum import Enum
+
+
+class CanalPedido(str, Enum):
+
+    APP = "APP"
+    TOTEM = "TOTEM"
+    BALCAO = "BALCAO"
+    PICKUP = "PICKUP"
+    WEB = "WEB"
+
+
+################################################################################
+ARQUIVO: app\domain\enums\status_pagamento.py
+################################################################################
+
+from enum import Enum
+
+
+class StatusPagamento(str, Enum):
+
+    PENDENTE = "PENDENTE"
+    APROVADO = "APROVADO"
+    RECUSADO = "RECUSADO"
+    
+
+
+################################################################################
+ARQUIVO: app\domain\enums\status_pedido.py
+################################################################################
+
+from enum import Enum
+
+
+class StatusPedido(str, Enum):
+
+    AGUARDANDO_PAGAMENTO = "AGUARDANDO_PAGAMENTO"
+    EM_PREPARO = "EM_PREPARO"
+    PRONTO = "PRONTO"
+    ENTREGUE = "ENTREGUE"
+    CANCELADO = "CANCELADO"
+
+
+################################################################################
+ARQUIVO: app\domain\models\__init__.py
+################################################################################
+
+from app.domain.models.usuario import Usuario
+from app.domain.models.unidade import Unidade
+from app.domain.models.produto import Produto
+from app.domain.models.produto_unidade import ProdutoUnidade
+from app.domain.models.estoque import Estoque
+from app.domain.models.pedido import Pedido
+from app.domain.models.item_pedido import ItemPedido
+from app.domain.models.pagamento import Pagamento
+from app.domain.models.consentimento import Consentimento
+from app.domain.models.registro_auditoria import RegistroAuditoria
+from app.domain.models.ponto_fidelidade import PontoFidelidade
+
+
+################################################################################
+ARQUIVO: app\domain\models\consentimento.py
+################################################################################
+
+
+from datetime import datetime
+
+from sqlalchemy import (
+    ForeignKey,
+    String,
+    Boolean,
+    DateTime
+)
+
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class Consentimento(Base):
+    __tablename__ = "consentimentos"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id"),
+        nullable=False
+    )
+
+    finalidade: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    autorizado: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+    data_consentimento: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+    data_revogacao: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True
+    )
+
+
+
+################################################################################
+ARQUIVO: app\domain\models\estoque.py
+################################################################################
+
+from datetime import datetime
+
+from sqlalchemy import (
+    ForeignKey,
+    Integer,
+    DateTime,
+    CheckConstraint
+)
+
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class Estoque(Base):
+
+    __tablename__ = "estoques"
+
+    __table_args__ = (
+        CheckConstraint(
+            "quantidade_disponivel >= 0",
+            name="ck_estoque_quantidade_positiva"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    produto_unidade_id: Mapped[int] = mapped_column(
+        ForeignKey("produto_unidade.id"),
+        unique=True,
+        nullable=False
+    )
+
+    quantidade_disponivel: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False
+    )
+
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        onupdate=datetime.now,
+        nullable=False
+    )
+
+
+################################################################################
+ARQUIVO: app\domain\models\item_pedido.py
+################################################################################
+
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    ForeignKey,
+    Integer,
+    Numeric,
+    CheckConstraint
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.infrastructure.database.database import Base
+
+if TYPE_CHECKING:
+    from app.domain.models.pedido import Pedido
+
+
+class ItemPedido(Base):
+
+    __tablename__ = "itens_pedido"
+
+    __table_args__ = (
+        CheckConstraint(
+            "quantidade > 0",
+            name="ck_item_pedido_quantidade_positiva"
+        ),
+        CheckConstraint(
+            "preco_unitario >= 0",
+            name="ck_item_pedido_preco_positivo"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    pedido_id: Mapped[int] = mapped_column(
+        ForeignKey("pedidos.id"),
+        nullable=False
+    )
+
+    produto_unidade_id: Mapped[int] = mapped_column(
+        ForeignKey("produto_unidade.id"),
+        nullable=False
+    )
+
+    quantidade: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False
+    )
+
+    preco_unitario: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False
+    )
+
+    pedido: Mapped["Pedido"] = relationship(
+        "Pedido",
+        back_populates="itens"
+    )
+
+
+################################################################################
+ARQUIVO: app\domain\models\pagamento.py
+################################################################################
+
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    ForeignKey,
+    DateTime,
+    Numeric,
+    Integer,
+    String,
+    Enum,
+    UniqueConstraint,
+    CheckConstraint
+)
+
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+from app.domain.enums.status_pagamento import StatusPagamento
+
+
+class Pagamento(Base):
+
+    __tablename__ = "pagamentos"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "pedido_id",
+            "numero_tentativa",
+            name="uq_pagamento_pedido_tentativa"
+        ),
+        CheckConstraint(
+            "valor > 0",
+            name="ck_pagamento_valor_positivo"
+        ),
+        CheckConstraint(
+            "numero_tentativa > 0",
+            name="ck_pagamento_tentativa_positiva"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    pedido_id: Mapped[int] = mapped_column(
+        ForeignKey("pedidos.id"),
+        nullable=False
+    )
+
+    status_pagamento: Mapped[StatusPagamento] = mapped_column(
+        Enum(StatusPagamento, name="status_pagamento"),
+        default=StatusPagamento.PENDENTE,
+        nullable=False
+    )
+
+    valor: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False
+    )
+
+    data_pagamento: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+    numero_tentativa: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False
+    )
+
+    referencia_transacao: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True
+    )
+
+
+################################################################################
+ARQUIVO: app\domain\models\pedido.py
+################################################################################
+
+from datetime import datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    ForeignKey,
+    DateTime,
+    Numeric,
+    Enum,
+    CheckConstraint
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.infrastructure.database.database import Base
+from app.domain.enums.canal_pedido import CanalPedido
+from app.domain.enums.status_pedido import StatusPedido
+
+if TYPE_CHECKING:
+    from app.domain.models.item_pedido import ItemPedido
+
+
+class Pedido(Base):
+
+    __tablename__ = "pedidos"
+
+    __table_args__ = (
+        CheckConstraint(
+            "valor_total >= 0",
+            name="ck_pedido_valor_total_positivo"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    cliente_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id"),
+        nullable=False
+    )
+
+    atendente_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id"),
+        nullable=True
+    )
+
+    unidade_id: Mapped[int] = mapped_column(
+        ForeignKey("unidades.id"),
+        nullable=False
+    )
+
+    canal_pedido: Mapped[CanalPedido] = mapped_column(
+        Enum(CanalPedido, name="canal_pedido"),
+        nullable=False
+    )
+
+    status: Mapped[StatusPedido] = mapped_column(
+        Enum(StatusPedido, name="status_pedido"),
+        default=StatusPedido.AGUARDANDO_PAGAMENTO,
+        nullable=False
+    )
+
+    valor_total: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False
+    )
+
+    data_criacao: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+    itens: Mapped[list["ItemPedido"]] = relationship(
+        "ItemPedido",
+        back_populates="pedido"
+    )
+
+
+################################################################################
+ARQUIVO: app\domain\models\ponto_fidelidade.py
+################################################################################
+
+from datetime import datetime
+
+from sqlalchemy import (
+    ForeignKey,
+    Integer,
+    DateTime,
+    CheckConstraint,
+    UniqueConstraint
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class PontoFidelidade(Base):
+
+    __tablename__ = "pontos_fidelidade"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "pedido_id",
+            name="uq_pontos_pedido"
+        ),
+        UniqueConstraint(
+            "pagamento_id",
+            name="uq_pontos_pagamento"
+        ),
+        CheckConstraint(
+            "pontos > 0",
+            name="ck_pontos_positivos"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    cliente_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id"),
+        nullable=False
+    )
+
+    pedido_id: Mapped[int] = mapped_column(
+        ForeignKey("pedidos.id"),
+        nullable=False
+    )
+
+    pagamento_id: Mapped[int] = mapped_column(
+        ForeignKey("pagamentos.id"),
+        nullable=False
+    )
+
+    pontos: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False
+    )
+
+    data_credito: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+
+################################################################################
+ARQUIVO: app\domain\models\produto.py
+################################################################################
+
+
+from decimal import Decimal
+
+from sqlalchemy import String, Boolean, Numeric, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class Produto(Base):
+
+    __tablename__ = "produtos"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    nome: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    descricao: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True
+    )
+
+    preco_padrao: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False
+    )
+
+    ativo: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+
+
+################################################################################
+ARQUIVO: app\domain\models\produto_unidade.py
+################################################################################
+
+
+from datetime import date
+from decimal import Decimal
+
+from sqlalchemy import (
+    ForeignKey,
+    String,
+    Boolean,
+    Numeric,
+    Date,
+    UniqueConstraint
+)
+
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class ProdutoUnidade(Base):
+
+    __tablename__ = "produto_unidade"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "unidade_id",
+            "produto_id",
+            name="uq_unidade_produto"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    unidade_id: Mapped[int] = mapped_column(
+        ForeignKey("unidades.id"),
+        nullable=False
+    )
+
+    produto_id: Mapped[int] = mapped_column(
+        ForeignKey("produtos.id"),
+        nullable=False
+    )
+
+    preco_especifico: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True
+    )
+
+    habilitado: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+    data_inicio_disponibilidade: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True
+    )
+
+    data_fim_disponibilidade: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True
+    )
+
+    observacao_variacao: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True
+    )
+
+
+
+################################################################################
+ARQUIVO: app\domain\models\registro_auditoria.py
+################################################################################
+
+
+from datetime import datetime
+
+from sqlalchemy import (
+    ForeignKey,
+    String,
+    Integer,
+    DateTime
+)
+
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class RegistroAuditoria(Base):
+    __tablename__ = "registros_auditoria"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id"),
+        nullable=True
+    )
+
+    acao: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    entidade: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    entidade_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False
+    )
+
+    data_hora: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False
+    )
+
+
+
+################################################################################
+ARQUIVO: app\domain\models\unidade.py
+################################################################################
+
+
+from sqlalchemy import String, Boolean
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class Unidade(Base):
+
+    __tablename__ = "unidades"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    nome: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    cidade: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    regiao: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    ativa: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+
+
+################################################################################
+ARQUIVO: app\domain\models\usuario.py
+################################################################################
+
+
+from sqlalchemy import String, Boolean, Enum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.infrastructure.database.database import Base
+
+
+class Usuario(Base):
+
+    __tablename__ = "usuarios"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        index=True
+    )
+
+    nome: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(150),
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    senha_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
+
+    perfil: Mapped[str] = mapped_column(
+        Enum(
+            "CLIENTE",
+            "ATENDENTE",
+            "COZINHA",
+            "GERENTE",
+            "MATRIZ",
+            name="perfil_usuario"
+        ),
+        nullable=False
+    )
+
+    ativo: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
+
+
+################################################################################
+ARQUIVO: app\infrastructure\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\infrastructure\database\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\infrastructure\database\database.py
+################################################################################
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+
+from app.core.config import settings
+
+
+# ConexÃ£o com o banco de dados
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False}
+)
+
+
+# Gerenciador de sessÃµes
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+
+# Classe-base dos modelos
+class Base(DeclarativeBase):
+    pass
+
+
+################################################################################
+ARQUIVO: app\infrastructure\database\init_db.py
+################################################################################
+
+
+# Importa os modelos para registrÃ¡-los no SQLAlchemy
+from app.domain import models
+
+# Importa a classe Base e a conexÃ£o
+from app.infrastructure.database.database import Base, engine
+
+
+def inicializar_banco():
+    Base.metadata.create_all(bind=engine)
+    print("Banco de dados inicializado com sucesso!")
+
+
+if __name__ == "__main__":
+    inicializar_banco()
+
+
+
+################################################################################
+ARQUIVO: app\main.py
+################################################################################
+
+from fastapi import FastAPI
+from app.core.config import settings
+from app.api.routes.auth import router as auth_router
+from app.api.routes.produtos import router as produtos_router
+from app.api.routes.unidades import router as unidades_router
+from app.api.routes.produto_unidades import router as produto_unidades_router
+from app.api.routes.estoques import router as estoques_router
+from app.api.routes import pedidos
+from app.api.routes import pagamentos
+from app.api.routes import consentimentos
+
+
+app = FastAPI(
+    title=settings.APP_NAME,
+    description="Backend da Rede RaÃ­zes do Nordeste",
+    version="1.0.0"
+)
+
+app.include_router(auth_router)
+app.include_router(produtos_router)
+app.include_router(unidades_router)
+app.include_router(produto_unidades_router)
+app.include_router(estoques_router)
+app.include_router(pedidos.router)
+app.include_router(pagamentos.router)
+app.include_router(consentimentos.router)
+
+
+@app.get("/")
+def inicio():
+    return {
+        "mensagem": "API Rede RaÃ­zes do Nordeste estÃ¡ funcionando!"
+    }
+
+
+
+################################################################################
+ARQUIVO: app\schemas\__init__.py
+################################################################################
+
+
+
+################################################################################
+ARQUIVO: app\schemas\consentimento.py
+################################################################################
+
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ConsentimentoCriacao(BaseModel):
+    finalidade: str = Field(
+        min_length=3,
+        max_length=100,
+        description="Finalidade do consentimento"
+    )
+
+
+class ConsentimentoResposta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    usuario_id: int
+    finalidade: str
+    autorizado: bool
+    data_consentimento: datetime
+    data_revogacao: datetime | None
+
+
+################################################################################
+ARQUIVO: app\schemas\estoque.py
+################################################################################
+
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EstoqueAtualizacao(BaseModel):
+    quantidade_disponivel: int = Field(ge=0)
+
+
+class EstoqueResposta(BaseModel):
+    id: int
+    produto_unidade_id: int
+    quantidade_disponivel: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+################################################################################
+ARQUIVO: app\schemas\pagamento.py
+################################################################################
+
+from datetime import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict
+
+from app.domain.enums.status_pagamento import StatusPagamento
+
+
+class PagamentoSimulacao(BaseModel):
+    aprovado: bool
+
+
+class PagamentoResposta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    pedido_id: int
+    status_pagamento: StatusPagamento
+    valor: Decimal
+    data_pagamento: datetime
+    numero_tentativa: int
+    referencia_transacao: str | None
+
+
+################################################################################
+ARQUIVO: app\schemas\pedido.py
+################################################################################
+
+from datetime import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
+
+from app.domain.enums.canal_pedido import CanalPedido
+from app.domain.enums.status_pedido import StatusPedido
+
+
+class ItemPedidoCriacao(BaseModel):
+    produto_unidade_id: int = Field(gt=0)
+    quantidade: int = Field(gt=0)
+
+
+class PedidoCriacao(BaseModel):
+    unidade_id: int = Field(gt=0)
+    cliente_id: int | None = Field(default=None, gt=0)
+    canal_pedido: CanalPedido
+    itens: list[ItemPedidoCriacao] = Field(min_length=1)
+
+
+class ItemPedidoResposta(BaseModel):
+    id: int
+    produto_unidade_id: int
+    quantidade: int
+    preco_unitario: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class PedidoResposta(BaseModel):
+    id: int
+    cliente_id: int
+    atendente_id: int | None
+    unidade_id: int
+    canal_pedido: CanalPedido
+    status: StatusPedido
+    valor_total: Decimal
+    data_criacao: datetime
+    itens: list[ItemPedidoResposta]
+
+    model_config = {"from_attributes": True}
+
+
+################################################################################
+ARQUIVO: app\schemas\produto.py
+################################################################################
+
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ProdutoCriacao(BaseModel):
+    nome: str = Field(min_length=3, max_length=100)
+    descricao: str | None = Field(default=None, max_length=1000)
+    preco_padrao: Decimal = Field(
+        gt=0,
+        max_digits=10,
+        decimal_places=2
+    )
+
+
+class ProdutoAtualizacao(BaseModel):
+    nome: str | None = Field(default=None, min_length=3, max_length=100)
+    descricao: str | None = Field(default=None, max_length=1000)
+    preco_padrao: Decimal | None = Field(
+        default=None,
+        gt=0,
+        max_digits=10,
+        decimal_places=2
+    )
+    ativo: bool | None = None
+
+
+class ProdutoResposta(BaseModel):
+    id: int
+    nome: str
+    descricao: str | None
+    preco_padrao: Decimal
+    ativo: bool
+
+    model_config = ConfigDict(from_attributes=True)
+    
+
+
+################################################################################
+ARQUIVO: app\schemas\produto_unidade.py
+################################################################################
+
+from datetime import date
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ProdutoUnidadeCriacao(BaseModel):
+    unidade_id: int = Field(gt=0)
+    produto_id: int = Field(gt=0)
+
+    preco_especifico: Decimal | None = Field(
+        default=None,
+        gt=0,
+        max_digits=10,
+        decimal_places=2
+    )
+
+    data_inicio_disponibilidade: date | None = None
+    data_fim_disponibilidade: date | None = None
+
+    observacao_variacao: str | None = Field(
+        default=None,
+        max_length=255
+    )
+
+
+class ProdutoUnidadeAtualizacao(BaseModel):
+    preco_especifico: Decimal | None = Field(
+        default=None,
+        gt=0,
+        max_digits=10,
+        decimal_places=2
+    )
+
+    habilitado: bool | None = None
+
+    data_inicio_disponibilidade: date | None = None
+    data_fim_disponibilidade: date | None = None
+
+    observacao_variacao: str | None = Field(
+        default=None,
+        max_length=255
+    )
+
+
+class ProdutoUnidadeResposta(BaseModel):
+    id: int
+    unidade_id: int
+    produto_id: int
+    preco_especifico: Decimal | None
+    habilitado: bool
+    data_inicio_disponibilidade: date | None
+    data_fim_disponibilidade: date | None
+    observacao_variacao: str | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+################################################################################
+ARQUIVO: app\schemas\unidade.py
+################################################################################
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class UnidadeCriacao(BaseModel):
+    nome: str = Field(min_length=3, max_length=100)
+    cidade: str = Field(min_length=2, max_length=100)
+    regiao: str = Field(min_length=2, max_length=100)
+
+
+class UnidadeAtualizacao(BaseModel):
+    nome: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=100
+    )
+
+    cidade: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=100
+    )
+
+    regiao: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=100
+    )
+
+    ativa: bool | None = None
+
+
+class UnidadeResposta(BaseModel):
+    id: int
+    nome: str
+    cidade: str
+    regiao: str
+    ativa: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+################################################################################
+ARQUIVO: app\schemas\usuario.py
+################################################################################
+
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class UsuarioCriacao(BaseModel):
+    nome: str = Field(min_length=3, max_length=100)
+    email: EmailStr
+    senha: str = Field(min_length=8, max_length=128)
+    perfil: str = "CLIENTE"
+
+
+class UsuarioLogin(BaseModel):
+    email: EmailStr
+    senha: str
+
+
+class UsuarioResposta(BaseModel):
+    id: int
+    nome: str
+    email: EmailStr
+    perfil: str
+    ativo: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+################################################################################
+ARQUIVO: criar_atendente_teste.py
+################################################################################
+
+
+from app.infrastructure.database.database import SessionLocal
+from app.domain.models.usuario import Usuario
+from app.core.security import gerar_hash_senha
+
+
+db = SessionLocal()
+
+try:
+    email = "atendente.teste@raizes.com"
+
+    existente = db.query(Usuario).filter(
+        Usuario.email == email
+    ).first()
+
+    if existente:
+        print("UsuÃ¡rio de teste jÃ¡ cadastrado.")
+    else:
+        atendente = Usuario(
+            nome="Atendente Teste",
+            email=email,
+            senha_hash=gerar_hash_senha("Atendente@123"),
+            perfil="ATENDENTE",
+            ativo=True
+        )
+
+        db.add(atendente)
+        db.commit()
+        db.refresh(atendente)
+
+        print("Atendente criado com sucesso!")
+        print("ID:", atendente.id)
+        print("Perfil:", atendente.perfil)
+
+finally:
+    db.close()
+
+
+
+################################################################################
+ARQUIVO: criar_gerente_teste.py
+################################################################################
+
+from getpass import getpass
+
+from app.infrastructure.database.database import SessionLocal
+from app.domain.models.usuario import Usuario
+from app.core.security import gerar_hash_senha
+
+
+db = SessionLocal()
+
+try:
+    email = "gerente.mvp@example.com"
+
+    existente = db.query(Usuario).filter(
+        Usuario.email == email
+    ).first()
+
+    if existente:
+        print("Este usuÃ¡rio jÃ¡ estÃ¡ cadastrado.")
+    else:
+        senha = getpass("Digite a senha do gerente: ")
+
+        if len(senha) < 8:
+            print("A senha deve ter pelo menos 8 caracteres.")
+        else:
+            gerente = Usuario(
+                nome="Gerente Teste",
+                email=email,
+                senha_hash=gerar_hash_senha(senha),
+                perfil="GERENTE",
+                ativo=True
+            )
+
+            db.add(gerente)
+            db.commit()
+
+            print("UsuÃ¡rio GERENTE criado com sucesso!")
+
+finally:
+    db.close()
+
+
+################################################################################
+ARQUIVO: requirements.txt
+################################################################################
+
+
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic-settings
+PyJWT
+pwdlib[argon2]
+pytest
+httpx
+email-validator
+
+
+################################################################################
+ARQUIVO: test_config.py
+################################################################################
+
+from app.core.config import settings
+
+print("Nome da aplicaÃ§Ã£o:", settings.APP_NAME)
+print("Ambiente:", settings.APP_ENV)
+print("Banco de dados:", settings.DATABASE_URL)
+
+
+################################################################################
+ARQUIVO: tests\conftest.py
+################################################################################
+
+import pytest
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from fastapi.testclient import TestClient
+
+from app.infrastructure.database.database import Base
+from app.api.dependencies import get_db
+from app.domain.models import *
+from app.main import app
+
+
+# Banco SQLite exclusivo para os testes
+TEST_DATABASE_URL = "sqlite://"
+
+engine_test = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+
+SessionTest = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine_test
+)
+
+
+@pytest.fixture
+def db():
+    # Cria todas as tabelas
+    Base.metadata.create_all(bind=engine_test)
+
+    session = SessionTest()
+
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine_test)
+
+
+@pytest.fixture
+def client(db):
+    # Substitui o banco oficial pelo banco de testes
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    # Restaura as dependÃªncias originais
+    app.dependency_overrides.clear()
+
+
+################################################################################
+ARQUIVO: tests\test_ambiente.py
+################################################################################
+
+from sqlalchemy import inspect
+
+
+def test_banco_de_testes_criado(db):
+    inspetor = inspect(db.bind)
+
+    tabelas = inspetor.get_table_names()
+
+    assert "usuarios" in tabelas
+    assert "produtos" in tabelas
+    assert "pedidos" in tabelas
+    assert "pagamentos" in tabelas
+
+
+################################################################################
+ARQUIVO: verificar_banco.py
+################################################################################
+
+
+import sqlite3
+
+conexao = sqlite3.connect("raizes.db")
+cursor = conexao.cursor()
+
+cursor.execute("""
+    SELECT
+        id,
+        produto_unidade_id,
+        quantidade_disponivel
+    FROM estoques
+""")
+
+resultados = cursor.fetchall()
+
+print("Registros de estoque encontrados:")
+
+for registro in resultados:
+    print(registro)
+
+conexao.close()
+
+
+
+################################################################################
+ARQUIVO: verificar_estoque.py
+################################################################################
+
+
+import sqlite3
+
+conexao = sqlite3.connect("raizes.db")
+cursor = conexao.cursor()
+
+cursor.execute("""
+    SELECT
+        id,
+        produto_unidade_id,
+        quantidade_disponivel
+    FROM estoques
+""")
+
+resultados = cursor.fetchall()
+
+print("Registros de estoque encontrados:")
+
+for registro in resultados:
+    print(registro)
+
+conexao.close()
+
+
+
+################################################################################
+ARQUIVO: verificar_estrutura.py
+################################################################################
+
+
+import sqlite3
+
+conn = sqlite3.connect("raizes.db")
+cursor = conn.cursor()
+
+for tabela in ["usuarios", "unidades", "produtos"]:
+    print(f"\nEstrutura da tabela: {tabela}")
+
+    cursor.execute(f"PRAGMA table_info({tabela})")
+
+    for coluna in cursor.fetchall():
+        print(coluna)
+
+conn.close()
+
+
+
+################################################################################
+ARQUIVO: verificar_tabelas.py
+################################################################################
+
+import sqlite3
+
+conn = sqlite3.connect("raizes.db")
+cursor = conn.cursor()
+
+tabelas = ["usuarios", "unidades", "produtos"]
+
+for tabela in tabelas:
+    print(f"\nEstrutura da tabela: {tabela}")
+
+    cursor.execute(f"PRAGMA table_info({tabela})")
+
+    for coluna in cursor.fetchall():
+        print(coluna)
+
+conn.close()
