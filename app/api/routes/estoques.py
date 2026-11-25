@@ -20,7 +20,6 @@ router = APIRouter(
 def listar_estoques(
     db: Session = Depends(get_db),
     usuario=Depends(exigir_perfil(
-        "CLIENTE",
         "ATENDENTE",
         "COZINHA",
         "GERENTE",
@@ -40,7 +39,6 @@ def obter_estoque(
     estoque_id: int,
     db: Session = Depends(get_db),
     usuario=Depends(exigir_perfil(
-        "CLIENTE",
         "ATENDENTE",
         "COZINHA",
         "GERENTE",

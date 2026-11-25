@@ -1,0 +1,2219 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Rede Raizes do Nordeste API",
+    "description": "Backend da Rede Raízes do Nordeste",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/auth/cadastro": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Cadastrar Usuario",
+        "operationId": "cadastrar_usuario_auth_cadastro_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioCriacao"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Realizar Login",
+        "operationId": "realizar_login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Obter Usuario Logado",
+        "operationId": "obter_usuario_logado_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioResposta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/produtos/": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Listar Produtos",
+        "operationId": "listar_produtos_produtos__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProdutoResposta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Produtos Produtos  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Cadastrar Produto",
+        "operationId": "cadastrar_produto_produtos__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoCriacao"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/produtos/{produto_id}": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Buscar Produto",
+        "operationId": "buscar_produto_produtos__produto_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "produto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Produto Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Atualizar Produto",
+        "operationId": "atualizar_produto_produtos__produto_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "produto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Produto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoAtualizacao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Desativar Produto",
+        "operationId": "desativar_produto_produtos__produto_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "produto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Produto Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/unidades/": {
+      "get": {
+        "tags": [
+          "Unidades"
+        ],
+        "summary": "Listar Unidades",
+        "operationId": "listar_unidades_unidades__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UnidadeResposta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Unidades Unidades  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Unidades"
+        ],
+        "summary": "Cadastrar Unidade",
+        "operationId": "cadastrar_unidade_unidades__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnidadeCriacao"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnidadeResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/unidades/{unidade_id}": {
+      "get": {
+        "tags": [
+          "Unidades"
+        ],
+        "summary": "Buscar Unidade",
+        "operationId": "buscar_unidade_unidades__unidade_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Unidade Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnidadeResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Unidades"
+        ],
+        "summary": "Atualizar Unidade",
+        "operationId": "atualizar_unidade_unidades__unidade_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Unidade Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnidadeAtualizacao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnidadeResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Unidades"
+        ],
+        "summary": "Desativar Unidade",
+        "operationId": "desativar_unidade_unidades__unidade_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unidade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Unidade Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/produto-unidades/": {
+      "get": {
+        "tags": [
+          "Produtos por Unidade"
+        ],
+        "summary": "Listar Produtos Unidades",
+        "operationId": "listar_produtos_unidades_produto_unidades__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProdutoUnidadeResposta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Produtos Unidades Produto Unidades  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Produtos por Unidade"
+        ],
+        "summary": "Associar Produto Unidade",
+        "operationId": "associar_produto_unidade_produto_unidades__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoUnidadeCriacao"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoUnidadeResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/produto-unidades/{produto_unidade_id}": {
+      "get": {
+        "tags": [
+          "Produtos por Unidade"
+        ],
+        "summary": "Obter Produto Unidade",
+        "operationId": "obter_produto_unidade_produto_unidades__produto_unidade_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "produto_unidade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Produto Unidade Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoUnidadeResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Produtos por Unidade"
+        ],
+        "summary": "Atualizar Produto Unidade",
+        "operationId": "atualizar_produto_unidade_produto_unidades__produto_unidade_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "produto_unidade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Produto Unidade Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProdutoUnidadeAtualizacao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProdutoUnidadeResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Produtos por Unidade"
+        ],
+        "summary": "Desativar Produto Unidade",
+        "operationId": "desativar_produto_unidade_produto_unidades__produto_unidade_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "produto_unidade_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Produto Unidade Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/estoques/": {
+      "get": {
+        "tags": [
+          "Gestão de Estoque"
+        ],
+        "summary": "Listar Estoques",
+        "operationId": "listar_estoques_estoques__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EstoqueResposta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Estoques Estoques  Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/estoques/{estoque_id}": {
+      "get": {
+        "tags": [
+          "Gestão de Estoque"
+        ],
+        "summary": "Obter Estoque",
+        "operationId": "obter_estoque_estoques__estoque_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estoque_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Estoque Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstoqueResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Gestão de Estoque"
+        ],
+        "summary": "Atualizar Estoque",
+        "operationId": "atualizar_estoque_estoques__estoque_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estoque_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Estoque Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstoqueAtualizacao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstoqueResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pedidos/": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "summary": "Criar Pedido Endpoint",
+        "operationId": "criar_pedido_endpoint_pedidos__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PedidoCriacao"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PedidoResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/pagamentos/{pedido_id}/simular": {
+      "post": {
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Simular Pagamento Endpoint",
+        "operationId": "simular_pagamento_endpoint_pagamentos__pedido_id__simular_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pedido_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pedido Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagamentoSimulacao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagamentoResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consentimentos/": {
+      "post": {
+        "tags": [
+          "Consentimento LGPD"
+        ],
+        "summary": "Criar Consentimento",
+        "operationId": "criar_consentimento_consentimentos__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentimentoCriacao"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentimentoResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/consentimentos/meus": {
+      "get": {
+        "tags": [
+          "Consentimento LGPD"
+        ],
+        "summary": "Consultar Meus Consentimentos",
+        "operationId": "consultar_meus_consentimentos_consentimentos_meus_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentimentoResposta"
+                  },
+                  "type": "array",
+                  "title": "Response Consultar Meus Consentimentos Consentimentos Meus Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/consentimentos/{consentimento_id}/revogar": {
+      "patch": {
+        "tags": [
+          "Consentimento LGPD"
+        ],
+        "summary": "Revogar Meu Consentimento",
+        "operationId": "revogar_meu_consentimento_consentimentos__consentimento_id__revogar_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "consentimento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Consentimento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentimentoResposta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fidelidade/meus-pontos": {
+      "get": {
+        "tags": [
+          "Fidelidade"
+        ],
+        "summary": "Obter Meu Saldo",
+        "operationId": "obter_meu_saldo_fidelidade_meus_pontos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaldoFidelidadeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/fidelidade/meu-historico": {
+      "get": {
+        "tags": [
+          "Fidelidade"
+        ],
+        "summary": "Obter Meu Historico",
+        "operationId": "obter_meu_historico_fidelidade_meu_historico_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HistoricoFidelidadeResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Obter Meu Historico Fidelidade Meu Historico Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Inicio",
+        "operationId": "inicio__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CanalPedido": {
+        "type": "string",
+        "enum": [
+          "APP",
+          "TOTEM",
+          "BALCAO",
+          "PICKUP",
+          "WEB"
+        ],
+        "title": "CanalPedido"
+      },
+      "ConsentimentoCriacao": {
+        "properties": {
+          "finalidade": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Finalidade",
+            "description": "Finalidade do consentimento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finalidade"
+        ],
+        "title": "ConsentimentoCriacao"
+      },
+      "ConsentimentoResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "usuario_id": {
+            "type": "integer",
+            "title": "Usuario Id"
+          },
+          "finalidade": {
+            "type": "string",
+            "title": "Finalidade"
+          },
+          "autorizado": {
+            "type": "boolean",
+            "title": "Autorizado"
+          },
+          "data_consentimento": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Data Consentimento"
+          },
+          "data_revogacao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Revogacao"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "usuario_id",
+          "finalidade",
+          "autorizado",
+          "data_consentimento",
+          "data_revogacao"
+        ],
+        "title": "ConsentimentoResposta"
+      },
+      "EstoqueAtualizacao": {
+        "properties": {
+          "quantidade_disponivel": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quantidade Disponivel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quantidade_disponivel"
+        ],
+        "title": "EstoqueAtualizacao"
+      },
+      "EstoqueResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "produto_unidade_id": {
+            "type": "integer",
+            "title": "Produto Unidade Id"
+          },
+          "quantidade_disponivel": {
+            "type": "integer",
+            "title": "Quantidade Disponivel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "produto_unidade_id",
+          "quantidade_disponivel"
+        ],
+        "title": "EstoqueResposta"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HistoricoFidelidadeResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "cliente_id": {
+            "type": "integer",
+            "title": "Cliente Id"
+          },
+          "pedido_id": {
+            "type": "integer",
+            "title": "Pedido Id"
+          },
+          "pagamento_id": {
+            "type": "integer",
+            "title": "Pagamento Id"
+          },
+          "pontos": {
+            "type": "integer",
+            "title": "Pontos"
+          },
+          "data_credito": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Data Credito"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cliente_id",
+          "pedido_id",
+          "pagamento_id",
+          "pontos",
+          "data_credito"
+        ],
+        "title": "HistoricoFidelidadeResponse"
+      },
+      "ItemPedidoCriacao": {
+        "properties": {
+          "produto_unidade_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Produto Unidade Id"
+          },
+          "quantidade": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantidade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "produto_unidade_id",
+          "quantidade"
+        ],
+        "title": "ItemPedidoCriacao"
+      },
+      "ItemPedidoResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "produto_unidade_id": {
+            "type": "integer",
+            "title": "Produto Unidade Id"
+          },
+          "quantidade": {
+            "type": "integer",
+            "title": "Quantidade"
+          },
+          "preco_unitario": {
+            "type": "string",
+            "title": "Preco Unitario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "produto_unidade_id",
+          "quantidade",
+          "preco_unitario"
+        ],
+        "title": "ItemPedidoResposta"
+      },
+      "PagamentoResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "pedido_id": {
+            "type": "integer",
+            "title": "Pedido Id"
+          },
+          "status_pagamento": {
+            "$ref": "#/components/schemas/StatusPagamento"
+          },
+          "valor": {
+            "type": "string",
+            "title": "Valor"
+          },
+          "data_pagamento": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Data Pagamento"
+          },
+          "numero_tentativa": {
+            "type": "integer",
+            "title": "Numero Tentativa"
+          },
+          "referencia_transacao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencia Transacao"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "pedido_id",
+          "status_pagamento",
+          "valor",
+          "data_pagamento",
+          "numero_tentativa",
+          "referencia_transacao"
+        ],
+        "title": "PagamentoResposta"
+      },
+      "PagamentoSimulacao": {
+        "properties": {
+          "aprovado": {
+            "type": "boolean",
+            "title": "Aprovado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aprovado"
+        ],
+        "title": "PagamentoSimulacao"
+      },
+      "PedidoCriacao": {
+        "properties": {
+          "unidade_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Unidade Id"
+          },
+          "cliente_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cliente Id"
+          },
+          "canal_pedido": {
+            "$ref": "#/components/schemas/CanalPedido"
+          },
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/ItemPedidoCriacao"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Itens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unidade_id",
+          "canal_pedido",
+          "itens"
+        ],
+        "title": "PedidoCriacao"
+      },
+      "PedidoResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "cliente_id": {
+            "type": "integer",
+            "title": "Cliente Id"
+          },
+          "atendente_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Atendente Id"
+          },
+          "unidade_id": {
+            "type": "integer",
+            "title": "Unidade Id"
+          },
+          "canal_pedido": {
+            "$ref": "#/components/schemas/CanalPedido"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusPedido"
+          },
+          "valor_total": {
+            "type": "string",
+            "title": "Valor Total"
+          },
+          "data_criacao": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Data Criacao"
+          },
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/ItemPedidoResposta"
+            },
+            "type": "array",
+            "title": "Itens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cliente_id",
+          "atendente_id",
+          "unidade_id",
+          "canal_pedido",
+          "status",
+          "valor_total",
+          "data_criacao",
+          "itens"
+        ],
+        "title": "PedidoResposta"
+      },
+      "ProdutoAtualizacao": {
+        "properties": {
+          "nome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "preco_padrao": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Padrao"
+          },
+          "ativo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativo"
+          }
+        },
+        "type": "object",
+        "title": "ProdutoAtualizacao"
+      },
+      "ProdutoCriacao": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Nome"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "preco_padrao": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Preco Padrao"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "preco_padrao"
+        ],
+        "title": "ProdutoCriacao"
+      },
+      "ProdutoResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "descricao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descricao"
+          },
+          "preco_padrao": {
+            "type": "string",
+            "title": "Preco Padrao"
+          },
+          "ativo": {
+            "type": "boolean",
+            "title": "Ativo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "descricao",
+          "preco_padrao",
+          "ativo"
+        ],
+        "title": "ProdutoResposta"
+      },
+      "ProdutoUnidadeAtualizacao": {
+        "properties": {
+          "preco_especifico": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Especifico"
+          },
+          "habilitado": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Habilitado"
+          },
+          "data_inicio_disponibilidade": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Inicio Disponibilidade"
+          },
+          "data_fim_disponibilidade": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Fim Disponibilidade"
+          },
+          "observacao_variacao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observacao Variacao"
+          }
+        },
+        "type": "object",
+        "title": "ProdutoUnidadeAtualizacao"
+      },
+      "ProdutoUnidadeCriacao": {
+        "properties": {
+          "unidade_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Unidade Id"
+          },
+          "produto_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Produto Id"
+          },
+          "preco_especifico": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Especifico"
+          },
+          "data_inicio_disponibilidade": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Inicio Disponibilidade"
+          },
+          "data_fim_disponibilidade": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Fim Disponibilidade"
+          },
+          "observacao_variacao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observacao Variacao"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unidade_id",
+          "produto_id"
+        ],
+        "title": "ProdutoUnidadeCriacao"
+      },
+      "ProdutoUnidadeResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "unidade_id": {
+            "type": "integer",
+            "title": "Unidade Id"
+          },
+          "produto_id": {
+            "type": "integer",
+            "title": "Produto Id"
+          },
+          "preco_especifico": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preco Especifico"
+          },
+          "habilitado": {
+            "type": "boolean",
+            "title": "Habilitado"
+          },
+          "data_inicio_disponibilidade": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Inicio Disponibilidade"
+          },
+          "data_fim_disponibilidade": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Fim Disponibilidade"
+          },
+          "observacao_variacao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observacao Variacao"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "unidade_id",
+          "produto_id",
+          "preco_especifico",
+          "habilitado",
+          "data_inicio_disponibilidade",
+          "data_fim_disponibilidade",
+          "observacao_variacao"
+        ],
+        "title": "ProdutoUnidadeResposta"
+      },
+      "SaldoFidelidadeResponse": {
+        "properties": {
+          "saldo_pontos": {
+            "type": "integer",
+            "title": "Saldo Pontos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "saldo_pontos"
+        ],
+        "title": "SaldoFidelidadeResponse"
+      },
+      "StatusPagamento": {
+        "type": "string",
+        "enum": [
+          "PENDENTE",
+          "APROVADO",
+          "RECUSADO"
+        ],
+        "title": "StatusPagamento"
+      },
+      "StatusPedido": {
+        "type": "string",
+        "enum": [
+          "AGUARDANDO_PAGAMENTO",
+          "EM_PREPARO",
+          "PRONTO",
+          "ENTREGUE",
+          "CANCELADO"
+        ],
+        "title": "StatusPedido"
+      },
+      "UnidadeAtualizacao": {
+        "properties": {
+          "nome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome"
+          },
+          "cidade": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cidade"
+          },
+          "regiao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regiao"
+          },
+          "ativa": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativa"
+          }
+        },
+        "type": "object",
+        "title": "UnidadeAtualizacao"
+      },
+      "UnidadeCriacao": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Nome"
+          },
+          "cidade": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Cidade"
+          },
+          "regiao": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Regiao"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "cidade",
+          "regiao"
+        ],
+        "title": "UnidadeCriacao"
+      },
+      "UnidadeResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "cidade": {
+            "type": "string",
+            "title": "Cidade"
+          },
+          "regiao": {
+            "type": "string",
+            "title": "Regiao"
+          },
+          "ativa": {
+            "type": "boolean",
+            "title": "Ativa"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "cidade",
+          "regiao",
+          "ativa"
+        ],
+        "title": "UnidadeResposta"
+      },
+      "UsuarioCriacao": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Nome"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "senha": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Senha"
+          },
+          "perfil": {
+            "type": "string",
+            "title": "Perfil",
+            "default": "CLIENTE"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "email",
+          "senha"
+        ],
+        "title": "UsuarioCriacao"
+      },
+      "UsuarioLogin": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "senha": {
+            "type": "string",
+            "title": "Senha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "senha"
+        ],
+        "title": "UsuarioLogin"
+      },
+      "UsuarioResposta": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "perfil": {
+            "type": "string",
+            "title": "Perfil"
+          },
+          "ativo": {
+            "type": "boolean",
+            "title": "Ativo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "email",
+          "perfil",
+          "ativo"
+        ],
+        "title": "UsuarioResposta"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
