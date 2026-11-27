@@ -1,8 +1,14 @@
+
 # 15. Referências
 
-- SOMMERVILLE, Ian. **Engenharia de Software**. 10ª edição. Pearson, 2019.  
-- PRESSMAN, Roger S. **Engenharia de Software: Uma Abordagem Profissional**. 8ª edição. McGraw-Hill, 2016.  
-- UNINTER. **Manual de Projeto Multidisciplinar Backend**. Curitiba, 2026.  
-- Documentação oficial do **FastAPI**: https://fastapi.tiangolo.com/  
-- Documentação oficial do **SQLAlchemy**: https://www.sqlalchemy.org/  
-- Documentação oficial do **SQLite**: https://www.sqlite.org/docs.html
+PYTHON SOFTWARE FOUNDATION. Documentação oficial do Python. Disponível em: https://docs.python.org/3/.
+
+FASTAPI. Documentação oficial do FastAPI. Disponível em: https://fastapi.tiangolo.com/.
+
+SQLALCHEMY. Documentação oficial do SQLAlchemy. Disponível em: https://docs.sqlalchemy.org/en/20/.
+
+SQLITE. Documentação oficial do SQLite. Disponível em: https://www.sqlite.org/docs.html.
+
+PYDANTIC. Documentação oficial do Pydantic. Disponível em: https://docs.pydantic.dev/.
+
+PYTEST. Documentação oficial do Pytest. Disponível em: https://docs.pytest.org/en/stable/.

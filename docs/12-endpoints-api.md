@@ -1,199 +1,155 @@
-# Endpoints da API
-
-## Objetivo
-Este documento especifica os principais endpoints da API REST que suportam os casos de uso e o modelo de dados definidos anteriormente. Todos os endpoints seguem o padrão RESTful e retornam respostas em JSON.
-
----
-
-## Autenticação
-- **POST /auth/login**
-  - Entrada: `{ email, senha }`
-  - Saída: `{ token_jwt }`
-  - Erros: `401 Unauthorized`
-
----
-
-## Usuários
-- **POST /usuarios**
-  - Cria um novo usuário (perfil CLIENTE, ATENDENTE, etc.)
-- **GET /usuarios/{id}**
-  - Retorna dados de um usuário específico
-- **PUT /usuarios/{id}**
-  - Atualiza dados do usuário
-- **DELETE /usuarios/{id}**
-  - Remove usuário
-
----
-
-## Produtos
-- **GET /produtos**
-  - Lista produtos ativos por unidade
-- **POST /produtos**
-  - Cria novo produto vinculado a uma unidade
-- **PUT /produtos/{id}**
-  - Atualiza informações do produto
-- **DELETE /produtos/{id}**
-  - Remove produto
-
----
-
-## Estoque
-- **GET /estoque/{produto_id}**
-  - Consulta quantidade disponível
-- **PUT /estoque/{produto_id}**
-  - Atualiza saldo de estoque
-
----
-
-## Pedidos
-- **POST /pedidos**
-  - Cria novo pedido (perfil CLIENTE)
-- **GET /pedidos/{id}**
-  - Retorna detalhes de um pedido
-- **PUT /pedidos/{id}/status**
-  - Atualiza status do pedido (`EM_PREPARO`, `PRONTO`, etc.)
-- **GET /pedidos?cliente_id=...**
-  - Lista pedidos de um cliente
-
----
-
-## Itens do Pedido
-- **POST /pedidos/{id}/itens**
-  - Adiciona item ao pedido
-- **DELETE /pedidos/{id}/itens/{item_id}**
-  - Remove item do pedido
-
----
-
-## Pagamentos
-- **POST /pagamentos**
-  - Processa pagamento de um pedido
-- **GET /pagamentos/{pedido_id}**
-  - Consulta status do pagamento
-
------------------------------------------------------------
 
 # 12. Endpoints da API
 
-## Objetivo
-Este documento especifica os principais endpoints da API REST que suportam os casos de uso e o modelo de dados definidos anteriormente. Todos os endpoints seguem o padrão RESTful e retornam respostas em JSON.
+## 12.1. Visão geral
 
----
+A API da Rede Raízes do Nordeste foi desenvolvida utilizando FastAPI e segue o padrão REST.
 
-## Autenticação
+A autenticação é realizada por meio de JWT (JSON Web Token). As rotas protegidas exigem o envio do token no cabeçalho HTTP:
 
-### POST /auth/login
-- **Descrição:** Realiza login e retorna token JWT.
-- **Entrada:**
-```json
-{ "email": "cliente@exemplo.com", "senha": "123456" }
+```http
+Authorization: Bearer SEU_TOKEN
+```
 
-Saída:
+A documentação interativa pode ser acessada pelo Swagger:
 
-json
-{ "token": "jwt_token_aqui", "expira_em": "2026-11-01T14:00:00" }
-Erros: 401 Unauthorized
+```text
+http://127.0.0.1:8000/docs
+```
 
-Usuários
-POST /usuarios
-Descrição: Cria novo usuário (perfil CLIENTE, ATENDENTE, etc.)
+## 12.2. Verificação da API
 
-Entrada:
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/` | Verifica se a API está funcionando. |
 
-json
-{ "nome": "Maria Silva", "email": "maria@exemplo.com", "senha": "123456", "perfil": "CLIENTE" }
-Saída:
+## 12.3. Autenticação
 
-json
-{ "id": 1, "nome": "Maria Silva", "email": "maria@exemplo.com", "perfil": "CLIENTE" }
-GET /usuarios/{id}
-Descrição: Retorna dados de um usuário específico.
+Prefixo: `/auth`
 
-Saída:
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/auth/cadastro` | Cadastra um novo usuário. |
+| POST | `/auth/login` | Realiza a autenticação e retorna o token JWT. |
+| GET | `/auth/me` | Retorna os dados do usuário autenticado. |
 
-json
-{ "id": 1, "nome": "Maria Silva", "email": "maria@exemplo.com", "perfil": "CLIENTE" }
-Produtos
-GET /produtos?unidade_id=1
-Descrição: Lista produtos ativos de uma unidade.
+## 12.4. Produtos
 
-Saída:
+Prefixo: `/produtos`
 
-json
-[
-  { "id": 10, "nome": "Cuscuz Nordestino", "preco": 12.50, "ativo": true, "unidade_id": 1 }
-]
-POST /produtos
-Descrição: Cria novo produto vinculado a uma unidade.
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/produtos/` | Cadastra um produto. |
+| GET | `/produtos/` | Lista os produtos. |
+| GET | `/produtos/{produto_id}` | Consulta um produto pelo identificador. |
+| PATCH | `/produtos/{produto_id}` | Atualiza os dados de um produto. |
+| DELETE | `/produtos/{produto_id}` | Desativa um produto logicamente. |
 
-Entrada:
+As operações de cadastro, atualização e desativação são restritas aos perfis GERENTE e MATRIZ.
 
-json
-{ "nome": "Tapioca", "descricao": "Tapioca com queijo coalho", "preco": 8.00, "unidade_id": 1, "ativo": true }
-Estoque
-GET /estoque/{produto_id}
-Descrição: Consulta quantidade disponível.
+## 12.5. Unidades
 
-Saída:
+Prefixo: `/unidades`
 
-json
-{ "produto_id": 10, "quantidade_disponivel": 25 }
-PUT /estoque/{produto_id}
-Descrição: Atualiza saldo de estoque.
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/unidades/` | Cadastra uma unidade. |
+| GET | `/unidades/` | Lista as unidades. |
+| GET | `/unidades/{unidade_id}` | Consulta uma unidade pelo identificador. |
+| PATCH | `/unidades/{unidade_id}` | Atualiza os dados de uma unidade. |
+| DELETE | `/unidades/{unidade_id}` | Desativa uma unidade logicamente. |
 
-Entrada:
+As operações de cadastro, atualização e desativação são restritas aos perfis GERENTE e MATRIZ.
 
-json
-{ "quantidade_disponivel": 30 }
-Pedidos
-POST /pedidos
-Descrição: Cria novo pedido.
+## 12.6. Produtos por unidade
 
-Entrada:
+Prefixo: `/produto-unidades`
 
-json
-{
-  "cliente_id": 1,
-  "unidade_id": 1,
-  "canal_pedido": "APP",
-  "itens": [ { "produto_id": 10, "quantidade": 2 } ]
-}
-Saída:
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/produto-unidades/` | Associa um produto a uma unidade. |
+| GET | `/produto-unidades/` | Lista as associações entre produtos e unidades. |
+| GET | `/produto-unidades/{produto_unidade_id}` | Consulta uma associação específica. |
+| PATCH | `/produto-unidades/{produto_unidade_id}` | Atualiza os dados da associação. |
+| DELETE | `/produto-unidades/{produto_unidade_id}` | Desabilita a associação logicamente. |
 
-json
-{ "id": 100, "status": "AGUARDANDO_PAGAMENTO", "valor_total": 25.00, "data_criacao": "2026-11-01T13:55:00" }
-GET /pedidos/{id}
-Descrição: Retorna detalhes de um pedido.
+Essa funcionalidade permite que um mesmo produto tenha condições específicas em diferentes unidades, incluindo preço e disponibilidade.
 
-Saída:
+O cadastro de uma associação também cria seu registro de estoque inicial, com quantidade zero.
 
-json
-{
-  "id": 100,
-  "cliente_id": 1,
-  "unidade_id": 1,
-  "status": "EM_PREPARO",
-  "valor_total": 25.00,
-  "itens": [ { "produto_id": 10, "quantidade": 2, "preco_unitario": 12.50 } ]
-}
-Pagamentos
-POST /pagamentos
-Descrição: Processa pagamento de um pedido.
+## 12.7. Estoques
 
-Entrada:
+Prefixo: `/estoques`
 
-json
-{ "pedido_id": 100, "valor": 25.00, "metodo": "CARTAO" }
-Saída:
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/estoques/` | Lista os registros de estoque. |
+| GET | `/estoques/{estoque_id}` | Consulta um registro de estoque. |
+| PATCH | `/estoques/{estoque_id}` | Atualiza a quantidade disponível. |
 
-json
-{ "id": 200, "pedido_id": 100, "status_pagamento": "APROVADO", "data_pagamento": "2026-11-01T13:56:00", "valor": 25.00 }
-GET /pagamentos/{pedido_id}
-Descrição: Consulta status do pagamento.
+A consulta de estoque é permitida aos perfis ATENDENTE, COZINHA, GERENTE e MATRIZ.
 
-Saída:
+A atualização é restrita aos perfis GERENTE e MATRIZ.
 
-json
-{ "pedido_id": 100, "status_pagamento": "APROVADO" }
-Código
+## 12.8. Pedidos
 
+Prefixo: `/pedidos`
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/pedidos/` | Cria um novo pedido. |
+
+O cliente é identificado por meio do token JWT, evitando que outro usuário informe livremente a identificação de um cliente no corpo da requisição.
+
+O pedido pode ser realizado pelos canais previstos no sistema, como APP, TOTEM, BALCAO, PICKUP e WEB.
+
+## 12.9. Pagamentos
+
+Prefixo: `/pagamentos`
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/pagamentos/{pedido_id}/simular` | Simula o processamento do pagamento de um pedido. |
+
+A simulação permite testar situações de aprovação e recusa de pagamento, sem integração com uma instituição financeira real.
+
+A operação é permitida aos perfis CLIENTE e ATENDENTE, respeitando as regras de acesso ao pedido.
+
+## 12.10. Consentimentos e LGPD
+
+Prefixo: `/consentimentos`
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| POST | `/consentimentos/` | Registra um consentimento. |
+| GET | `/consentimentos/meus` | Lista os consentimentos do usuário autenticado. |
+| PATCH | `/consentimentos/{consentimento_id}/revogar` | Revoga um consentimento. |
+
+As operações consideram o usuário autenticado, permitindo registrar e consultar seus próprios consentimentos e solicitar a revogação.
+
+## 12.11. Programa de fidelidade
+
+Prefixo: `/fidelidade`
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/fidelidade/meus-pontos` | Consulta a pontuação do cliente autenticado. |
+| GET | `/fidelidade/meu-historico` | Consulta o histórico de movimentações de pontos. |
+
+Essas operações são destinadas ao perfil CLIENTE.
+
+## 12.12. Códigos HTTP utilizados
+
+| Código | Significado | Aplicação |
+|---|---|---|
+| 200 | OK | Operação realizada com sucesso. |
+| 201 | Created | Cadastro ou criação realizada com sucesso. |
+| 400 | Bad Request | Solicitação inválida ou regra de negócio não atendida. |
+| 401 | Unauthorized | Falha de autenticação ou token inválido. |
+| 403 | Forbidden | Usuário sem permissão para realizar a operação. |
+| 404 | Not Found | Recurso não encontrado. |
+| 409 | Conflict | Conflito com o estado atual do recurso. |
+| 422 | Unprocessable Entity | Dados enviados não atendem à validação. |
+| 500 | Internal Server Error | Erro interno durante o processamento. |
+
+**Observação:** os endpoints e permissões apresentados correspondem às rotas implementadas no projeto. Os códigos HTTP indicam situações previstas na aplicação e não significam que todos sejam retornados por todas as operações.
